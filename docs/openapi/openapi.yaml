@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Unofficial Skylight API (Community Reference)
-  version: 0.5.0
+  version: 0.6.0
   description: |
     Reverse-engineered reference for Skylight endpoints based on observed traffic.
     JSON:API-style resources are common (type, id, attributes, relationships).
@@ -299,8 +299,13 @@ components:
       required: [type, id]
 
     # ---- Calendars ----
+    # NOTE: A dedicated /source_calendars endpoint was NOT observed in captured
+    # traffic. Connected-account data instead arrives as `calendar_account`
+    # included resources inside the calendar_events response. This schema is
+    # retained as unverified; prefer CalendarAccount* below.
     SourceCalendarAttributes:
       type: object
+      description: Unverified; not observed in captured traffic. See CalendarAccountAttributes.
       additionalProperties: true
 
     SourceCalendarResource:
@@ -315,10 +320,160 @@ components:
           $ref: '#/components/schemas/SourceCalendarAttributes'
       required: [type, id]
 
+    # Connected calendar account, returned as an `included` resource of
+    # calendar_events (include=calendar_account). Contains PII (emails).
+    CalendarAccountAttributes:
+      type: object
+      properties:
+        email:
+          type: string
+          description: Account email. **PII — redact in shared examples.**
+        provider:
+          type: string
+          description: e.g., gmail
+        active_calendars:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+                description: Often the calendar's email/address. **PII — redact.**
+              name:
+                type: string
+                description: Calendar display name. May be personal — redact.
+              role:
+                type: string
+                description: e.g., owner
+              editable:
+                type: boolean
+            additionalProperties: true
+      additionalProperties: true
+
+    CalendarAccountResource:
+      type: object
+      properties:
+        type:
+          type: string
+          enum: [calendar_account]
+        id:
+          type: string
+        attributes:
+          $ref: '#/components/schemas/CalendarAccountAttributes'
+      required: [type, id]
+
+    # Full shape captured from GET /calendar_events. Several fields are PII or
+    # secret — see redaction notes and SECURITY.md.
     CalendarEventAttributes:
       type: object
-      description: Placeholder; fields will be added as captured.
+      properties:
+        uid:
+          type: string
+          description: >
+            Event UID. Usually an opaque id, but some sync sources encode
+            email-shaped values here — treat as potentially sensitive.
+        summary:
+          type: string
+          description: Event title. **PII — redact in shared examples.**
+        description:
+          type: string
+          nullable: true
+          description: "**PII — redact.**"
+        location:
+          type: string
+          nullable: true
+          description: "**PII — redact.**"
+        lat:
+          type: number
+          nullable: true
+        lng:
+          type: number
+          nullable: true
+        invited_emails:
+          type: array
+          description: "**PII — redact.**"
+          items:
+            type: string
+        owner_email:
+          type: string
+          nullable: true
+          description: "**PII — redact.**"
+        status:
+          type: string
+          description: e.g., approved
+        all_day:
+          type: boolean
+        timezone:
+          type: string
+          nullable: true
+          description: IANA timezone name; may be null for all-day events
+        starts_at:
+          type: string
+          format: date-time
+          description: ISO-8601 with timezone offset
+        ends_at:
+          type: string
+          format: date-time
+          description: ISO-8601 with timezone offset
+        recurring:
+          type: boolean
+        recurring_config:
+          type: boolean
+        rrule:
+          type: array
+          nullable: true
+          description: >
+            Recurrence lines when recurring; null otherwise. NOTE: an ARRAY of
+            strings (e.g. ["RRULE:FREQ=WEEKLY", "EXDATE:..."]), unlike the
+            single-string rrule on meal_sitting.
+          items:
+            type: string
+        master_event_id:
+          type: string
+          nullable: true
+          description: For recurring instances, the id of the master event
+        source:
+          type: string
+          description: "Origin of the event, e.g. ics_link"
+        kind:
+          type: string
+          description: e.g., standard
+        editable:
+          type: boolean
+        countdown_enabled:
+          type: boolean
+        calendar_id:
+          type: string
+          nullable: true
+          description: >
+            **SECRET — redact.** Observed as a live webcal:// subscription URL that
+            acts like a bearer credential for that calendar feed, NOT a plain id.
+        supports_notification_settings:
+          type: boolean
       additionalProperties: true
+
+    CalendarEventRelationships:
+      type: object
+      properties:
+        categories:
+          type: object
+          properties:
+            data:
+              type: array
+              items:
+                $ref: '#/components/schemas/JsonApiResourceId'
+        calendar_account:
+          type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/JsonApiResourceId'
+              nullable: true
+        event_notification_setting:
+          type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/JsonApiResourceId'
+              nullable: true
 
     CalendarEventResource:
       type: object
@@ -330,6 +485,8 @@ components:
           type: string
         attributes:
           $ref: '#/components/schemas/CalendarEventAttributes'
+        relationships:
+          $ref: '#/components/schemas/CalendarEventRelationships'
       required: [type, id]
 
     # ---- Rewards ----
@@ -533,6 +690,47 @@ components:
           type: boolean
           description: If true, persist an ad-hoc meal into the recipe box
       required: [summary, categoryId, date]
+
+    # Flat request body observed on PATCH /meals/sittings/{id}/instances/{date}.
+    # Edits a single dated instance. NOTE: the client sends BOTH camelCase and
+    # snake_case id fields (categoryId + meal_category_id, recipeId + meal_recipe_id)
+    # in the same body — appears to be belt-and-suspenders for compatibility.
+    MealSittingInstanceUpdateRequest:
+      type: object
+      properties:
+        date:
+          type: string
+          format: date
+          description: New date for this instance (moves it); path date is the current one
+        note:
+          type: string
+          nullable: true
+        summary:
+          type: string
+          nullable: true
+        description:
+          type: string
+          nullable: true
+        rrule:
+          type: string
+          nullable: true
+        saveToRecipeBox:
+          type: boolean
+        categoryId:
+          type: string
+          nullable: true
+        meal_category_id:
+          type: string
+          nullable: true
+          description: Duplicate of categoryId (snake_case); client sends both
+        recipeId:
+          type: string
+          nullable: true
+        meal_recipe_id:
+          type: string
+          nullable: true
+          description: Duplicate of recipeId (snake_case); client sends both
+      additionalProperties: true
 
     # ---- Meal Recipe create (flat body) ----
     # Flat request body observed on POST /meals/recipes (NOT JSON:API wrapped).
@@ -946,7 +1144,11 @@ paths:
   /api/frames/{frameId}/source_calendars:
     get:
       tags: [Calendars]
-      summary: List source calendars
+      summary: List source calendars (UNVERIFIED — not observed in traffic)
+      description: |
+        Not observed in captured traffic. Connected-account data is instead
+        returned as `calendar_account` included resources on `calendar_events`.
+        Retained pending confirmation; may not exist.
       security:
         - basicToken: []
         - bearerAuth: []
@@ -1015,7 +1217,7 @@ paths:
                     items:
                       oneOf:
                         - $ref: '#/components/schemas/CategoryResource'
-                        - $ref: '#/components/schemas/SourceCalendarResource'
+                        - $ref: '#/components/schemas/CalendarAccountResource'
         '304':
           description: Not Modified
 
@@ -1256,9 +1458,12 @@ paths:
       tags: [Recipes]
       summary: Add a recipe's ingredients to the grocery list
       description: |
-        Recipe→Lists bridge. Observed with **no request body**; returns 200 and
-        adds the recipe's ingredients as items on the default grocery list (see the
-        Lists endpoints). Exact response body and target-list selection to be captured.
+        Recipe→Lists bridge. Sent with **no request body**. NOTE: this is **async** —
+        the response echoes the recipe with `meta.auto_creation_intent_id`, meaning
+        the ingredient parsing/append is dispatched through the Assist
+        (auto_creation_intents) job system rather than written synchronously. To
+        confirm the items landed, poll that intent (see the Assist endpoints) or
+        re-read the target list.
       security:
         - basicToken: []
         - bearerAuth: []
@@ -1274,6 +1479,22 @@ paths:
       responses:
         '200':
           description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    allOf:
+                      - $ref: '#/components/schemas/MealRecipeResource'
+                      - type: object
+                        properties:
+                          meta:
+                            type: object
+                            properties:
+                              auto_creation_intent_id:
+                                type: integer
+                                description: Poll this intent to confirm completion
 
   # ---- Meal Sittings (the meal plan) ----
   /api/frames/{frameId}/meals/sittings:
@@ -1418,7 +1639,9 @@ paths:
       summary: Edit a single occurrence of a planned meal
       description: |
         Edits one dated instance of a (possibly recurring) sitting, keyed by the
-        instance date (YYYY-MM-DD). Request body shape to be captured.
+        instance date (YYYY-MM-DD). A `date` in the body different from the path
+        date moves the instance. Returns the updated sitting(s) plus a `meta` with
+        `deleted_sitting_ids` for client sync.
       security:
         - basicToken: []
         - bearerAuth: []
@@ -1453,8 +1676,7 @@ paths:
         content:
           application/json:
             schema:
-              type: object
-              additionalProperties: true
+              $ref: '#/components/schemas/MealSittingInstanceUpdateRequest'
       responses:
         '200':
           description: OK
@@ -1466,6 +1688,14 @@ paths:
                   data:
                     type: array
                     items: { $ref: '#/components/schemas/MealSittingResource' }
+                  meta:
+                    type: object
+                    properties:
+                      date_min: { type: string, format: date }
+                      date_max: { type: string, format: date }
+                      deleted_sitting_ids:
+                        type: array
+                        items: { type: string }
     delete:
       tags: [Meals]
       summary: Remove a single occurrence of a planned meal

@@ -1,0 +1,70 @@
+{
+  "_note": "GET /calendar_events. Values redacted: FRAME id, event summary/description/location, all emails, and calendar_id (a live webcal:// subscription secret). Field names/types/enums preserved. Event array shown with 1 of 20 items.",
+  "request": {
+    "method": "GET",
+    "url": "https://app.ourskylight.com/api/frames/FRAME_REDACTED/calendar_events?date_min=2026-07-01&date_max=2026-08-01&timezone=America/New_York&include=categories,calendar_account,event_notification_setting",
+    "headers": {
+      "Authorization": "Bearer REDACTED",
+      "Accept": "application/json"
+    }
+  },
+  "response": {
+    "status": 200,
+    "body": {
+      "data": [
+        {
+          "id": "1340633949",
+          "type": "calendar_event",
+          "attributes": {
+            "uid": "827FBC9F-744F-4AB6-A27C-973E5181D5EB",
+            "summary": "REDACTED",
+            "invited_emails": [],
+            "status": "approved",
+            "all_day": true,
+            "timezone": null,
+            "starts_at": "2026-06-26T00:00:00.000-04:00",
+            "ends_at": "2026-07-04T00:00:00.000-04:00",
+            "recurring": false,
+            "recurring_config": false,
+            "rrule": null,
+            "master_event_id": null,
+            "description": null,
+            "location": null,
+            "lat": null,
+            "lng": null,
+            "source": "ics_link",
+            "kind": "standard",
+            "editable": false,
+            "countdown_enabled": false,
+            "owner_email": "REDACTED_EMAIL",
+            "calendar_id": "CALENDAR_SUBSCRIPTION_URL_REDACTED",
+            "supports_notification_settings": false
+          },
+          "relationships": {
+            "categories": { "data": [ { "id": "6809867", "type": "category" } ] },
+            "calendar_account": { "data": null },
+            "event_notification_setting": { "data": null }
+          }
+        }
+      ],
+      "included": [
+        {
+          "id": "6809867",
+          "type": "category",
+          "attributes": { "id": 6809867, "color": "#FF9500", "label": "REDACTED", "selected_for_chore_chart": false, "linked_to_profile": false }
+        },
+        {
+          "id": "776818",
+          "type": "calendar_account",
+          "attributes": {
+            "email": "REDACTED_EMAIL",
+            "active_calendars": [
+              { "id": "REDACTED_EMAIL", "name": "REDACTED", "role": "owner", "editable": true }
+            ],
+            "provider": "gmail"
+          }
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,43 @@
+{
+  "_note": "PATCH a single meal-plan instance. Path date is the current instance (2026-07-03); body `date` moves it to 2026-07-04. Note the duplicate camelCase + snake_case id fields the client sends.",
+  "request": {
+    "method": "PATCH",
+    "url": "https://app.ourskylight.com/api/frames/FRAME_REDACTED/meals/sittings/37774857/instances/2026-07-03?date_min=2026-07-01&date_max=2026-08-01&include=meal_category,meal_recipe",
+    "headers": {
+      "Authorization": "Bearer REDACTED",
+      "Content-Type": "application/json"
+    },
+    "body": {
+      "date": "2026-07-04",
+      "note": "",
+      "categoryId": "2961983",
+      "rrule": null,
+      "summary": null,
+      "description": null,
+      "saveToRecipeBox": true,
+      "recipeId": "67676359",
+      "meal_category_id": "2961983",
+      "meal_recipe_id": "67676359"
+    }
+  },
+  "response": {
+    "status": 200,
+    "body": {
+      "data": [
+        {
+          "id": "37774857",
+          "type": "meal_sitting",
+          "attributes": {
+            "summary": "Easy Tomato Soup",
+            "description": "Ingredients:\n... (full recipe text) ...",
+            "draft": false
+          },
+          "relationships": {
+            "meal_category": { "data": { "id": "2961983", "type": "meal_category" } }
+          }
+        }
+      ],
+      "meta": { "date_min": "2026-07-01", "date_max": "2026-08-01", "deleted_sitting_ids": [] }
+    }
+  }
+}

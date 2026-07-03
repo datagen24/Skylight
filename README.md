@@ -48,7 +48,8 @@ Endpoints are grouped by tag in the OpenAPI spec. Current areas:
 - **Frames** — household/device frames.
 - **Chores** — list (by date range) and create; categories and reward points.
 - **Categories** · **Devices** · **Lists** (+ list items) · **Task Box**.
-- **Calendars** — source calendars and calendar events (schemas partial).
+- **Calendars** — calendar events (full schema) and connected `calendar_account`
+  data. Note: no `/source_calendars` endpoint observed.
 - **Rewards** — rewards and reward points.
 - **Meals** / **Recipes** — meal categories, the recipe box (list/get/create/update,
   add-to-grocery-list), and the meal plan (`meal_sitting` create + per-date instance
@@ -80,8 +81,8 @@ Explore the API spec in your browser:
 ## Roadmap
 
 - Add auth/login flow (if observable).
-- Fill remaining placeholder schemas: calendar events, source calendars, devices.
-- Capture the instance `PATCH` body and the `add_to_grocery_list` response.
+- Fill remaining placeholder schema: `devices` (and confirm/remove `source_calendars`).
+- Capture `event_notification_setting` (calendar) and calendar event create/update.
 - Explore Assist attachment/photo ingestion: which `engine` + how `attachment_put_url`
   is used (likely the mobile-only path).
 - Note rate limits and error shapes; add shared error/response components.
@@ -91,6 +92,22 @@ Explore the API spec in your browser:
 Maintainers: add yourself to `docs/maintainers.md` if you contribute regularly.
 
 ## Changelog
+
+### v0.6.0
+- Fleshed out **`calendar_events`** from a placeholder to the full captured schema
+  (times, `all_day`, location/lat-lng, recurrence, `source`, `kind`, PII/secret
+  field notes) plus relationships (categories, calendar_account).
+- Added **`calendar_account`** schema — connected-account data comes as an
+  *included* resource of `calendar_events`, not from `/source_calendars` (which was
+  not observed and is now flagged unverified).
+- Completed meal CRUD: **PATCH instance** request body
+  (`MealSittingInstanceUpdateRequest`, incl. the duplicate camelCase/snake_case id
+  quirk) and the **`add_to_grocery_list`** response — which is **async**, routing
+  through Assist (`meta.auto_creation_intent_id`).
+- Added examples: `get-calendar-events`, `patch-meals-sitting-instance`,
+  `post-add-to-grocery-list`.
+- **Security**: documented `calendar_id` as a `webcal://` subscription **secret**
+  (not a plain id) plus other calendar PII fields in `SECURITY.md`.
 
 ### v0.5.0
 - Added **`POST /meals/recipes`** (create a recipe) — flat body
