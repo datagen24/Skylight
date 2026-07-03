@@ -54,7 +54,7 @@ Endpoints are grouped by tag in the OpenAPI spec. Current areas:
   add-to-grocery-list), and the meal plan (`meal_sitting` create + per-date instance
   edit/delete). See [docs/capture-meal-planning.md](docs/capture-meal-planning.md).
 - **Assist** — AI/import-assisted creation via `auto_creation_intents`
-  (async create → poll → created_items).
+  (async create → poll → created_items). See [docs/assist.md](docs/assist.md).
 
 Coverage is partial and evolving; the spec marks placeholder/uncaptured fields inline.
 
