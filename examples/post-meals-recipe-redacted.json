@@ -1,0 +1,35 @@
+{
+  "request": {
+    "method": "POST",
+    "url": "https://app.ourskylight.com/api/frames/FRAME_REDACTED/meals/recipes?include=meal_category",
+    "headers": {
+      "Authorization": "Bearer REDACTED",
+      "Content-Type": "application/json"
+    },
+    "body": {
+      "meal_category_id": "2961982",
+      "summary": "Test Recipe B",
+      "description": "Ingredients:\n2 cups broth\n1 cup rice\n\nInstructions:1. Boil broth.\n2. Add rice and simmer."
+    }
+  },
+  "response": {
+    "status": 200,
+    "body": {
+      "data": {
+        "id": "67676413",
+        "type": "meal_recipe",
+        "attributes": {
+          "summary": "Test Recipe B",
+          "description": "Ingredients:\n2 cups broth\n1 cup rice\n\nInstructions:1. Boil broth.\n2. Add rice and simmer.",
+          "draft": false
+        },
+        "relationships": {
+          "meal_category": { "data": { "id": "2961982", "type": "meal_category" } }
+        }
+      },
+      "included": [
+        { "id": "2961982", "type": "meal_category", "attributes": { "color": "#F66951", "label": "Breakfast", "enabled": true, "position": 0 } }
+      ]
+    }
+  }
+}

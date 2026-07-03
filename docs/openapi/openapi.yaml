@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Unofficial Skylight API (Community Reference)
-  version: 0.4.0
+  version: 0.5.0
   description: |
     Reverse-engineered reference for Skylight endpoints based on observed traffic.
     JSON:API-style resources are common (type, id, attributes, relationships).
@@ -21,6 +21,10 @@ tags:
     description: Meal categories and the meal plan (sittings/instances).
   - name: Recipes
     description: Recipe box and recipe→grocery-list actions.
+  - name: Assist
+    description: >
+      AI/import-assisted creation ("Assist") via auto_creation_intents. An async
+      engine-driven flow (create → poll → created_items).
 
 components:
   securitySchemes:
@@ -530,13 +534,68 @@ components:
           description: If true, persist an ad-hoc meal into the recipe box
       required: [summary, categoryId, date]
 
-    # ---- Auto Creation Intents (purpose not yet confirmed) ----
+    # ---- Meal Recipe create (flat body) ----
+    # Flat request body observed on POST /meals/recipes (NOT JSON:API wrapped).
+    MealRecipeCreateRequest:
+      type: object
+      properties:
+        summary:
+          type: string
+          description: Recipe title/name
+        description:
+          type: string
+          nullable: true
+          description: >
+            Free-text recipe body (Ingredients:/Instructions: convention). See
+            MealRecipeAttributes — not machine-structured.
+        meal_category_id:
+          type: string
+          nullable: true
+          description: Numeric meal_category id (as a string), e.g. "2961982"
+      required: [summary]
+
+    # ---- Auto Creation Intents (the "Assist" AI backend) ----
+    # Generalised AI/import-assisted creation. The `engine` selects what is built
+    # (observed: meal_sittings_generator). Flow: POST to start → poll GET until
+    # status flips processing→approved (result embedded) → GET .../created_items
+    # for the ids of the real records created. `attachment_put_url` is a presigned
+    # upload slot, likely used by mobile "Assist" to attach a photo/email payload.
     AutoCreationIntentAttributes:
       type: object
-      description: >
-        Placeholder. Observed as GET /auto_creation_intents/{id} during the meal
-        workflow; likely relates to AI/import-assisted recipe or meal creation.
-        Fields to be captured.
+      properties:
+        created_via:
+          type: string
+          description: e.g., app_form
+        created_at:
+          type: string
+          format: date-time
+        label:
+          type: string
+          nullable: true
+          description: Human summary once resolved, e.g. "1 recipe and 1 meal"
+        engine:
+          type: string
+          description: "Generation engine. Observed: meal_sittings_generator"
+        status:
+          type: string
+          description: >
+            Lifecycle status. Observed: processing, approved. Other terminal
+            states (e.g. failed/rejected) likely exist but were not captured.
+          enum: [processing, approved]
+        external_result_url:
+          type: string
+          nullable: true
+        result:
+          type: object
+          nullable: true
+          description: >
+            Engine-specific result payload; null until approved. For
+            meal_sittings_generator: { new_recipes: [ { title, description } ] }.
+          additionalProperties: true
+        attachment_put_url:
+          type: string
+          nullable: true
+          description: Presigned PUT URL for attaching an input file/image, when applicable.
       additionalProperties: true
 
     AutoCreationIntentResource:
@@ -549,6 +608,68 @@ components:
           type: string
         attributes:
           $ref: '#/components/schemas/AutoCreationIntentAttributes'
+      required: [type, id]
+
+    # Flat request body observed on POST /auto_creation_intents.
+    AutoCreationIntentCreateRequest:
+      type: object
+      properties:
+        engine:
+          type: string
+          description: "Generation engine. Observed: meal_sittings_generator"
+        text:
+          type: string
+          description: Natural-language prompt (e.g. "easy tomato soup")
+        created_via:
+          type: string
+          description: e.g., app_form
+        meal_category_id:
+          type: string
+          nullable: true
+        ext:
+          type: string
+          nullable: true
+        draft_first:
+          type: boolean
+        engine_inputs:
+          type: object
+          description: >
+            Engine-specific inputs. For meal_sittings_generator:
+            meal_sitting_dates (array of YYYY-MM-DD), meal_recipe_source
+            (e.g. "generate"), meal_mouths_to_feed (int), add_to_grocery_list (bool).
+          additionalProperties: true
+      required: [engine, text]
+
+    AutoCreatedItemAttributes:
+      type: object
+      properties:
+        class_name:
+          type: string
+          description: "Backend model of the created record, e.g. Meal::Recipe, Meal::Sitting"
+        label:
+          type: string
+          nullable: true
+        sub_label:
+          type: string
+          nullable: true
+        parent_id:
+          type: string
+          nullable: true
+        destroyed:
+          type: boolean
+      additionalProperties: true
+
+    AutoCreatedItemResource:
+      type: object
+      properties:
+        type:
+          type: string
+          enum: [auto_created_item]
+        id:
+          type: string
+          description: Id of the created record (e.g. the meal_recipe / meal_sitting id)
+        attributes:
+          $ref: '#/components/schemas/AutoCreatedItemAttributes'
       required: [type, id]
 
 paths:
@@ -1018,6 +1139,45 @@ paths:
                   included:
                     type: array
                     items: { $ref: '#/components/schemas/MealCategoryResource' }
+    post:
+      tags: [Recipes]
+      summary: Create a recipe
+      description: |
+        Creates a recipe directly. Request body is a **flat object** (not JSON:API
+        wrapped). This is the simplest path for scripted recipe creation; the AI
+        path (see Assist / auto_creation_intents) is a separate async flow.
+      security:
+        - basicToken: []
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: frameId
+          required: true
+          schema: { type: string }
+        - in: query
+          name: include
+          required: false
+          schema:
+            type: string
+            description: "CSV; observed: meal_category"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MealRecipeCreateRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/MealRecipeResource' }
+                  included:
+                    type: array
+                    items: { $ref: '#/components/schemas/MealCategoryResource' }
 
   /api/frames/{frameId}/meals/recipes/{recipeId}:
     get:
@@ -1345,14 +1505,54 @@ paths:
         '200':
           description: OK
 
-  # ---- Auto Creation Intents ----
+  # ---- Auto Creation Intents ("Assist" AI flow) ----
+  /api/frames/{frameId}/auto_creation_intents:
+    post:
+      tags: [Assist]
+      summary: Start an AI/import-assisted creation ("Assist")
+      description: |
+        Kicks off async generation. Flow:
+        1. POST here → returns an intent with `status: processing`.
+        2. Poll `GET /auto_creation_intents/{id}` until `status: approved`
+           (the `result` field is then populated).
+        3. `GET /auto_creation_intents/{id}/created_items` for the ids of the
+           real records created (records are created server-side on approval;
+           there is no separate confirm step).
+
+        The `engine` selects what is generated (observed: `meal_sittings_generator`,
+        which produces recipes + meal sittings). Request body is a **flat object**.
+      security:
+        - basicToken: []
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: frameId
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AutoCreationIntentCreateRequest'
+      responses:
+        '200':
+          description: OK (intent accepted; status typically `processing`)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/AutoCreationIntentResource' }
+
   /api/frames/{frameId}/auto_creation_intents/{intentId}:
     get:
-      tags: [Meals]
-      summary: Get an auto-creation intent (purpose not yet confirmed)
+      tags: [Assist]
+      summary: Poll an auto-creation intent
       description: |
-        Observed during the meal workflow; likely related to AI/import-assisted
-        recipe or meal creation. Included for coverage; schema to be captured.
+        Poll until `status` flips from `processing` to `approved`. On approval the
+        `result` field carries the engine output (for `meal_sittings_generator`,
+        `result.new_recipes[]` with `title` and `description`).
       security:
         - basicToken: []
         - bearerAuth: []
@@ -1374,3 +1574,34 @@ paths:
                 type: object
                 properties:
                   data: { $ref: '#/components/schemas/AutoCreationIntentResource' }
+
+  /api/frames/{frameId}/auto_creation_intents/{intentId}/created_items:
+    get:
+      tags: [Assist]
+      summary: List records created by an approved intent
+      description: |
+        Returns the actual records (e.g. `Meal::Recipe`, `Meal::Sitting`) created
+        from the intent's result, with their real ids for follow-up reads/edits.
+      security:
+        - basicToken: []
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: frameId
+          required: true
+          schema: { type: string }
+        - in: path
+          name: intentId
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/AutoCreatedItemResource' }

@@ -50,9 +50,11 @@ Endpoints are grouped by tag in the OpenAPI spec. Current areas:
 - **Categories** · **Devices** · **Lists** (+ list items) · **Task Box**.
 - **Calendars** — source calendars and calendar events (schemas partial).
 - **Rewards** — rewards and reward points.
-- **Meals** / **Recipes** — meal categories, the recipe box, and the meal plan
-  (`meal_sitting` create + per-date instance edit/delete), plus the recipe→grocery
-  bridge (`add_to_grocery_list`). See [docs/capture-meal-planning.md](docs/capture-meal-planning.md).
+- **Meals** / **Recipes** — meal categories, the recipe box (list/get/create/update,
+  add-to-grocery-list), and the meal plan (`meal_sitting` create + per-date instance
+  edit/delete). See [docs/capture-meal-planning.md](docs/capture-meal-planning.md).
+- **Assist** — AI/import-assisted creation via `auto_creation_intents`
+  (async create → poll → created_items).
 
 Coverage is partial and evolving; the spec marks placeholder/uncaptured fields inline.
 
@@ -79,8 +81,9 @@ Explore the API spec in your browser:
 
 - Add auth/login flow (if observable).
 - Fill remaining placeholder schemas: calendar events, source calendars, devices.
-- Capture `POST /meals/recipes` (create-recipe), instance `PATCH` bodies, and the
-  `add_to_grocery_list` response.
+- Capture the instance `PATCH` body and the `add_to_grocery_list` response.
+- Explore Assist attachment/photo ingestion: which `engine` + how `attachment_put_url`
+  is used (likely the mobile-only path).
 - Note rate limits and error shapes; add shared error/response components.
 
 ---
@@ -88,6 +91,19 @@ Explore the API spec in your browser:
 Maintainers: add yourself to `docs/maintainers.md` if you contribute regularly.
 
 ## Changelog
+
+### v0.5.0
+- Added **`POST /meals/recipes`** (create a recipe) — flat body
+  `{meal_category_id, summary, description}`; simplest path for scripted creation.
+- Added the **Assist** tag and documented the AI flow via `auto_creation_intents`:
+  `POST` to start → poll `GET .../{id}` until `status: processing→approved`
+  (`result.new_recipes` embedded) → `GET .../{id}/created_items` for the real
+  record ids. Engine-driven (observed: `meal_sittings_generator`).
+- Fleshed out `auto_creation_intent` from placeholder to full schema; added
+  `AutoCreatedItem` and the two create-request schemas.
+- Noted `attachment_put_url` — a presigned upload slot, likely the mechanism
+  behind mobile "Assist" photo/email ingestion (different `engine`, same endpoint).
+- Added examples: `post-meals-recipe`, `assist-auto-creation-intent-flow`.
 
 ### v0.4.0
 - Added **Meals** and **Recipes** coverage from captured web-app traffic:

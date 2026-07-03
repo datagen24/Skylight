@@ -1,0 +1,117 @@
+{
+  "_note": "Assist AI flow (engine=meal_sittings_generator): POST to start, poll GET until status=approved, then GET created_items. Recipe text truncated for brevity; real payload contains the full generated Ingredients/Instructions blob.",
+  "steps": [
+    {
+      "step": "1. start intent",
+      "request": {
+        "method": "POST",
+        "url": "https://app.ourskylight.com/api/frames/FRAME_REDACTED/auto_creation_intents",
+        "headers": { "Authorization": "Bearer REDACTED", "Content-Type": "application/json" },
+        "body": {
+          "ext": null,
+          "engine": "meal_sittings_generator",
+          "text": "easy tomato soup",
+          "meal_category_id": "2961983",
+          "created_via": "app_form",
+          "engine_inputs": {
+            "meal_sitting_dates": ["2026-07-03"],
+            "meal_recipe_source": "generate",
+            "meal_mouths_to_feed": 4,
+            "add_to_grocery_list": false
+          },
+          "draft_first": false
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": {
+            "id": "17416859",
+            "type": "auto_creation_intent",
+            "attributes": {
+              "created_via": "app_form",
+              "created_at": "2026-07-03T20:06:55.449Z",
+              "label": null,
+              "engine": "meal_sittings_generator",
+              "status": "processing",
+              "external_result_url": null,
+              "result": null,
+              "attachment_put_url": null
+            }
+          }
+        }
+      }
+    },
+    {
+      "step": "2. poll until approved",
+      "request": {
+        "method": "GET",
+        "url": "https://app.ourskylight.com/api/frames/FRAME_REDACTED/auto_creation_intents/17416859",
+        "headers": { "Authorization": "Bearer REDACTED" }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": {
+            "id": "17416859",
+            "type": "auto_creation_intent",
+            "attributes": {
+              "created_via": "app_form",
+              "created_at": "2026-07-03T20:06:55.449Z",
+              "label": "1 recipe and 1 meal",
+              "engine": "meal_sittings_generator",
+              "status": "approved",
+              "external_result_url": null,
+              "result": {
+                "new_recipes": [
+                  {
+                    "title": "Easy Tomato Soup",
+                    "description": "Ingredients:\n- 2 tablespoons olive oil\n- 1 medium yellow onion, chopped\n- 2 cloves garlic, minced\n- 2 (28 ounce) cans crushed tomatoes\n... [full AI-generated ingredient/instruction text] ...\n8. Serve hot, garnished with fresh basil or croutons if desired. This recipe serves 4 people."
+                  }
+                ]
+              },
+              "attachment_put_url": null
+            }
+          }
+        }
+      }
+    },
+    {
+      "step": "3. fetch created records",
+      "request": {
+        "method": "GET",
+        "url": "https://app.ourskylight.com/api/frames/FRAME_REDACTED/auto_creation_intents/17416859/created_items",
+        "headers": { "Authorization": "Bearer REDACTED" }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "id": "67676359",
+              "type": "auto_created_item",
+              "attributes": {
+                "class_name": "Meal::Recipe",
+                "label": "Easy Tomato Soup",
+                "sub_label": "Lunch",
+                "parent_id": null,
+                "destroyed": false
+              }
+            },
+            {
+              "id": "37774857",
+              "type": "auto_created_item",
+              "attributes": {
+                "class_name": "Meal::Sitting",
+                "label": "Lunch",
+                "sub_label": "2026-07-03",
+                "parent_id": null,
+                "destroyed": false
+              }
+            }
+          ]
+        }
+      }
+    }
+  ]
+}
