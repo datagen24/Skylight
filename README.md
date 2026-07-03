@@ -85,8 +85,8 @@ Explore the API spec in your browser:
 - Capture `event_notification_setting` (calendar) and calendar event create/update.
 - Explore Assist attachment/photo ingestion: which `engine` + how `attachment_put_url`
   is used (likely the mobile-only path).
-- Capture actual error bodies (401/404/422) to replace the conventional
-  `ErrorDocument` guess; characterize rate limits (429) if any.
+- Capture the raw 404/422 JSON bodies (needs a proxy or authed client — the browser
+  network tool exposes status but not bodies); characterize rate limits (429) if any.
 
 ---
 
@@ -100,8 +100,16 @@ Maintainers: add yourself to `docs/maintainers.md` if you contribute regularly.
   JSON:API `ErrorDocument`/`ErrorObject` schema.
 - Wired standard error responses into every operation: `401` + `404` on all,
   `422` on writes; converted the 11 inline `304`s to `$ref`s.
-- Documented an "Errors & status codes" note in the spec description. Error bodies
-  (except `304`) are **conventional expectations**, not yet captured — marked as such.
+- Documented an "Errors & status codes" note in the spec description.
+- **Confirmed the 401 body** via an unauthenticated probe: `{"errors":["Invalid token"]}`
+  — an array of plain strings, not JSON:API error objects. Updated `ErrorDocument`
+  to match; added `examples/error-401-invalid-token.json`.
+- **422 status confirmed** (blank recipe summary → 422; client logged
+  "Summary can't be blank"); exact JSON body not directly captured, wrapper assumed
+  to match 401.
+- **404**: a JSON API 404 could not be triggered via the UI — a bad frame id returns
+  a page-level HTML 404 and the app never calls the API path; documented as such
+  rather than asserting a JSON shape.
 - Fleshed out **`calendar_events`** from a placeholder to the full captured schema
   (times, `all_day`, location/lat-lng, recurrence, `source`, `kind`, PII/secret
   field notes) plus relationships (categories, calendar_account).
