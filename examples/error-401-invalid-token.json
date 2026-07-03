@@ -1,0 +1,22 @@
+{
+  "_note": "Real 401 response to an unauthenticated request (garbage bearer token). No account interaction; no PII. Captured to confirm the error body shape.",
+  "request": {
+    "method": "GET",
+    "url": "https://app.ourskylight.com/api/frames/1/chores?after=2026-01-01&before=2026-01-02",
+    "headers": {
+      "Authorization": "Bearer garbage.invalid.token",
+      "Accept": "application/json"
+    }
+  },
+  "response": {
+    "status": 401,
+    "headers": {
+      "content-type": "application/json; charset=utf-8",
+      "skylight-api-version": "2026-01-01",
+      "x-request-id": "REDACTED"
+    },
+    "body": {
+      "errors": ["Invalid token"]
+    }
+  }
+}

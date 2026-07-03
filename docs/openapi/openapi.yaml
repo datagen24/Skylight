@@ -9,17 +9,21 @@ info:
 
     ## Errors & status codes
 
-    Error responses are documented via shared `components/responses`. Except for
-    `304` (observed) these are **conventional expectations**, not fully captured —
-    the exact error body has not been verified, so `ErrorDocument` describes the
-    standard JSON:API error shape as a best guess.
+    Error responses are documented via shared `components/responses`.
 
-    - `401` — missing/expired/invalid token. Re-capture a fresh token (see docs/auth.md).
-    - `404` — frame or resource not found.
-    - `422` — validation error on a write (create/update).
+    - `304` — observed.
+    - `401` — **confirmed**: body is `{"errors":["Invalid token"]}` (array of
+      strings). Re-capture a fresh token (see docs/auth.md).
+    - `404` — frame or resource not found. Body shape not yet captured (assumed
+      same `{"errors":[...]}` form).
+    - `422` — validation error on a write. Body shape not yet captured.
     - `429` — rate limiting, **if** enforced; limits are not yet characterized.
 
-    All authenticated endpoints may also return `5xx` on server errors.
+    `ErrorDocument` reflects the confirmed 401 shape; the richer `ErrorObject`
+    fallback is unconfirmed. All authenticated endpoints may also return `5xx`.
+
+    Observed response headers include `skylight-api-version` (e.g. `2026-01-01`)
+    and a per-request `x-request-id`.
 servers:
   - url: https://app.ourskylight.com
 tags:
@@ -60,6 +64,8 @@ components:
       content:
         application/json:
           schema: { $ref: '#/components/schemas/ErrorDocument' }
+          example:
+            errors: ["Invalid token"]
     Forbidden:
       description: Authenticated but not permitted for this frame/resource.
       content:
@@ -82,10 +88,13 @@ components:
           schema: { $ref: '#/components/schemas/ErrorDocument' }
 
   schemas:
-    # Conventional JSON:API error shape. NOT yet captured from Skylight — the real
-    # error body may differ. Used by the shared error responses above.
+    # Error body. CONFIRMED on 401: `errors` is an array of plain strings, e.g.
+    # {"errors":["Invalid token"]} — NOT the JSON:API array-of-objects form. The
+    # object form is kept as a fallback in case 404/422/5xx use richer errors
+    # (not yet captured).
     ErrorObject:
       type: object
+      description: Richer error form (fallback; not yet observed — 401 uses strings).
       properties:
         status:
           type: string
@@ -110,7 +119,14 @@ components:
       properties:
         errors:
           type: array
-          items: { $ref: '#/components/schemas/ErrorObject' }
+          description: >
+            Confirmed on 401 as an array of plain strings (e.g. ["Invalid token"]).
+            Other statuses may use the same string form or the richer ErrorObject —
+            not yet confirmed.
+          items:
+            oneOf:
+              - type: string
+              - $ref: '#/components/schemas/ErrorObject'
       required: [errors]
 
     JsonApiResourceId:
