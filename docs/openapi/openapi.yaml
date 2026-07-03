@@ -14,9 +14,12 @@ info:
     - `304` — observed.
     - `401` — **confirmed**: body is `{"errors":["Invalid token"]}` (array of
       strings). Re-capture a fresh token (see docs/auth.md).
-    - `404` — frame or resource not found. Body shape not yet captured (assumed
-      same `{"errors":[...]}` form).
-    - `422` — validation error on a write. Body shape not yet captured.
+    - `404` — JSON body **not captured**. A nonexistent frame id yields a page-level
+      HTML 404, not a JSON API error; the app never reaches the API for a bad frame.
+      Assumed `{"errors":[...]}` when a JSON 404 does occur.
+    - `422` — **status confirmed** (blank recipe summary → 422; client logged
+      "Summary can't be blank"). Exact JSON body not directly captured; assumed the
+      same string-array form.
     - `429` — rate limiting, **if** enforced; limits are not yet characterized.
 
     `ErrorDocument` reflects the confirmed 401 shape; the richer `ErrorObject`
@@ -72,15 +75,25 @@ components:
         application/json:
           schema: { $ref: '#/components/schemas/ErrorDocument' }
     NotFound:
-      description: Frame or resource not found.
+      description: >
+        Resource not found. The JSON API 404 body was NOT captured: navigating to a
+        nonexistent frame id returns a routing-level full-page HTML 404 ("The page
+        you were looking for doesn't exist"), and the app never calls the API path
+        for a bad frame. Shape below is assumed (same {"errors":[...]} string form).
       content:
         application/json:
           schema: { $ref: '#/components/schemas/ErrorDocument' }
     UnprocessableEntity:
-      description: Validation error on a write (create/update).
+      description: >
+        Validation error on a write. Status CONFIRMED (422) — POST /meals/recipes
+        with a blank summary returns 422; the client logged "Summary can't be blank".
+        The exact JSON body was not directly captured; the example is reconstructed
+        to match the confirmed 401 string-array shape.
       content:
         application/json:
           schema: { $ref: '#/components/schemas/ErrorDocument' }
+          example:
+            errors: ["Summary can't be blank"]
     TooManyRequests:
       description: Rate limited, if enforced (limits not yet characterized).
       content:
