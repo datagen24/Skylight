@@ -85,7 +85,8 @@ Explore the API spec in your browser:
 - Capture `event_notification_setting` (calendar) and calendar event create/update.
 - Explore Assist attachment/photo ingestion: which `engine` + how `attachment_put_url`
   is used (likely the mobile-only path).
-- Note rate limits and error shapes; add shared error/response components.
+- Capture actual error bodies (401/404/422) to replace the conventional
+  `ErrorDocument` guess; characterize rate limits (429) if any.
 
 ---
 
@@ -93,7 +94,14 @@ Maintainers: add yourself to `docs/maintainers.md` if you contribute regularly.
 
 ## Changelog
 
-### v0.6.0
+### v0.7.0
+- Added shared `components/responses` (`NotModified`, `Unauthorized`, `Forbidden`,
+  `NotFound`, `UnprocessableEntity`, `TooManyRequests`) and a conventional
+  JSON:API `ErrorDocument`/`ErrorObject` schema.
+- Wired standard error responses into every operation: `401` + `404` on all,
+  `422` on writes; converted the 11 inline `304`s to `$ref`s.
+- Documented an "Errors & status codes" note in the spec description. Error bodies
+  (except `304`) are **conventional expectations**, not yet captured — marked as such.
 - Fleshed out **`calendar_events`** from a placeholder to the full captured schema
   (times, `all_day`, location/lat-lng, recurrence, `source`, `kind`, PII/secret
   field notes) plus relationships (categories, calendar_account).

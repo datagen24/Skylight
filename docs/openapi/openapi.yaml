@@ -1,11 +1,25 @@
 openapi: 3.0.3
 info:
   title: Unofficial Skylight API (Community Reference)
-  version: 0.6.0
+  version: 0.7.0
   description: |
     Reverse-engineered reference for Skylight endpoints based on observed traffic.
     JSON:API-style resources are common (type, id, attributes, relationships).
     **Unofficial**; for research and interoperability. All examples redacted.
+
+    ## Errors & status codes
+
+    Error responses are documented via shared `components/responses`. Except for
+    `304` (observed) these are **conventional expectations**, not fully captured —
+    the exact error body has not been verified, so `ErrorDocument` describes the
+    standard JSON:API error shape as a best guess.
+
+    - `401` — missing/expired/invalid token. Re-capture a fresh token (see docs/auth.md).
+    - `404` — frame or resource not found.
+    - `422` — validation error on a write (create/update).
+    - `429` — rate limiting, **if** enforced; limits are not yet characterized.
+
+    All authenticated endpoints may also return `5xx` on server errors.
 servers:
   - url: https://app.ourskylight.com
 tags:
@@ -38,7 +52,67 @@ components:
       description: |
         Observed Authorization header uses an opaque Basic token. Treat as secret.
 
+  responses:
+    NotModified:
+      description: Not Modified (observed; conditional GET with a matching ETag/cache).
+    Unauthorized:
+      description: Missing, expired, or invalid token.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorDocument' }
+    Forbidden:
+      description: Authenticated but not permitted for this frame/resource.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorDocument' }
+    NotFound:
+      description: Frame or resource not found.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorDocument' }
+    UnprocessableEntity:
+      description: Validation error on a write (create/update).
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorDocument' }
+    TooManyRequests:
+      description: Rate limited, if enforced (limits not yet characterized).
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorDocument' }
+
   schemas:
+    # Conventional JSON:API error shape. NOT yet captured from Skylight — the real
+    # error body may differ. Used by the shared error responses above.
+    ErrorObject:
+      type: object
+      properties:
+        status:
+          type: string
+          description: HTTP status code as a string (JSON:API convention)
+        code:
+          type: string
+        title:
+          type: string
+        detail:
+          type: string
+        source:
+          type: object
+          properties:
+            pointer:
+              type: string
+            parameter:
+              type: string
+      additionalProperties: true
+
+    ErrorDocument:
+      type: object
+      properties:
+        errors:
+          type: array
+          items: { $ref: '#/components/schemas/ErrorObject' }
+      required: [errors]
+
     JsonApiResourceId:
       type: object
       properties:
@@ -886,6 +960,8 @@ paths:
             type: string
           required: true
       responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
         '200':
           description: OK
           content:
@@ -895,8 +971,7 @@ paths:
                 properties:
                   data:
                     $ref: '#/components/schemas/FrameResource'
-        '304':
-          description: Not Modified
+        '304': { $ref: '#/components/responses/NotModified' }
 
   # ---- Chores ----
   /api/frames/{frameId}/chores:
@@ -928,6 +1003,8 @@ paths:
             type: string
             enum: [linked_to_profile]
       responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
         '200':
           description: OK
           content:
@@ -941,8 +1018,7 @@ paths:
                   included:
                     type: array
                     items: { $ref: '#/components/schemas/CategoryResource' }
-        '304':
-          description: Not Modified
+        '304': { $ref: '#/components/responses/NotModified' }
     post:
       tags: [Chores]
       summary: Create a chore
@@ -973,6 +1049,9 @@ paths:
                       $ref: '#/components/schemas/ChoreRelationships'
                   required: [type, attributes]
       responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/UnprocessableEntity' }
         '200':
           description: OK
           content:
@@ -999,6 +1078,8 @@ paths:
           required: true
           schema: { type: string }
       responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
         '200':
           description: OK
           content:
@@ -1009,8 +1090,7 @@ paths:
                   data:
                     type: array
                     items: { $ref: '#/components/schemas/CategoryResource' }
-        '304':
-          description: Not Modified
+        '304': { $ref: '#/components/responses/NotModified' }
 
   # ---- Devices ----
   /api/frames/{frameId}/devices:
@@ -1026,6 +1106,8 @@ paths:
           required: true
           schema: { type: string }
       responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
         '200':
           description: OK
           content:
@@ -1036,8 +1118,7 @@ paths:
                   data:
                     type: array
                     items: { $ref: '#/components/schemas/DeviceResource' }
-        '304':
-          description: Not Modified
+        '304': { $ref: '#/components/responses/NotModified' }
 
   # ---- Lists ----
   /api/frames/{frameId}/lists:
@@ -1053,6 +1134,8 @@ paths:
           required: true
           schema: { type: string }
       responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
         '200':
           description: OK
           content:
@@ -1063,8 +1146,7 @@ paths:
                   data:
                     type: array
                     items: { $ref: '#/components/schemas/ListResource' }
-        '304':
-          description: Not Modified
+        '304': { $ref: '#/components/responses/NotModified' }
 
   /api/frames/{frameId}/lists/{listId}:
     get:
@@ -1083,6 +1165,8 @@ paths:
           required: true
           schema: { type: string }
       responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
         '200':
           description: OK
           content:
@@ -1131,6 +1215,9 @@ paths:
                       $ref: '#/components/schemas/TaskBoxItemAttributes'
                   required: [type, attributes]
       responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/UnprocessableEntity' }
         '200':
           description: OK
           content:
@@ -1158,6 +1245,8 @@ paths:
           required: true
           schema: { type: string }
       responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
         '200':
           description: OK
           content:
@@ -1168,8 +1257,7 @@ paths:
                   data:
                     type: array
                     items: { $ref: '#/components/schemas/SourceCalendarResource' }
-        '304':
-          description: Not Modified
+        '304': { $ref: '#/components/responses/NotModified' }
 
   /api/frames/{frameId}/calendar_events:
     get:
@@ -1202,6 +1290,8 @@ paths:
             type: string
             description: "CSV: categories,calendar_account,event_notification_setting"
       responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
         '200':
           description: OK
           content:
@@ -1218,8 +1308,7 @@ paths:
                       oneOf:
                         - $ref: '#/components/schemas/CategoryResource'
                         - $ref: '#/components/schemas/CalendarAccountResource'
-        '304':
-          description: Not Modified
+        '304': { $ref: '#/components/responses/NotModified' }
 
   # ---- Rewards ----
   /api/frames/{frameId}/rewards:
@@ -1239,6 +1328,8 @@ paths:
           required: false
           schema: { type: string, format: date-time }
       responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
         '200':
           description: OK
           content:
@@ -1249,8 +1340,7 @@ paths:
                   data:
                     type: array
                     items: { $ref: '#/components/schemas/RewardResource' }
-        '304':
-          description: Not Modified
+        '304': { $ref: '#/components/responses/NotModified' }
 
   /api/frames/{frameId}/reward_points:
     get:
@@ -1265,6 +1355,8 @@ paths:
           required: true
           schema: { type: string }
       responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
         '200':
           description: OK
           content:
@@ -1275,8 +1367,7 @@ paths:
                   data:
                     type: array
                     items: { $ref: '#/components/schemas/RewardPointResource' }
-        '304':
-          description: Not Modified
+        '304': { $ref: '#/components/responses/NotModified' }
 
   # ---- Meal Categories ----
   /api/frames/{frameId}/meals/categories:
@@ -1292,6 +1383,8 @@ paths:
           required: true
           schema: { type: string }
       responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
         '200':
           description: OK
           content:
@@ -1302,8 +1395,7 @@ paths:
                   data:
                     type: array
                     items: { $ref: '#/components/schemas/MealCategoryResource' }
-        '304':
-          description: Not Modified
+        '304': { $ref: '#/components/responses/NotModified' }
 
   # ---- Recipes ----
   /api/frames/{frameId}/meals/recipes:
@@ -1328,6 +1420,8 @@ paths:
             type: string
             description: "CSV; observed: meal_category"
       responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
         '200':
           description: OK
           content:
@@ -1369,6 +1463,9 @@ paths:
             schema:
               $ref: '#/components/schemas/MealRecipeCreateRequest'
       responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/UnprocessableEntity' }
         '200':
           description: OK
           content:
@@ -1402,6 +1499,8 @@ paths:
           required: false
           schema: { type: string }
       responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
         '200':
           description: OK
           content:
@@ -1444,6 +1543,9 @@ paths:
               description: Recipe attributes to update (shape to be captured).
               additionalProperties: true
       responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/UnprocessableEntity' }
         '200':
           description: OK
           content:
@@ -1477,6 +1579,9 @@ paths:
           required: true
           schema: { type: string }
       responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/UnprocessableEntity' }
         '200':
           description: OK
           content:
@@ -1527,6 +1632,8 @@ paths:
             type: string
             description: "CSV; observed: meal_category,meal_recipe"
       responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
         '200':
           description: OK
           content:
@@ -1543,8 +1650,7 @@ paths:
                       oneOf:
                         - $ref: '#/components/schemas/MealCategoryResource'
                         - $ref: '#/components/schemas/MealRecipeResource'
-        '304':
-          description: Not Modified
+        '304': { $ref: '#/components/responses/NotModified' }
     post:
       tags: [Meals]
       summary: Plan a meal (create a sitting on a date)
@@ -1566,6 +1672,9 @@ paths:
             schema:
               $ref: '#/components/schemas/MealSittingCreateRequest'
       responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/UnprocessableEntity' }
         '200':
           description: OK
           content:
@@ -1614,6 +1723,8 @@ paths:
             type: string
             description: "CSV; observed: meal_category,meal_recipe"
       responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
         '200':
           description: OK
           content:
@@ -1678,6 +1789,9 @@ paths:
             schema:
               $ref: '#/components/schemas/MealSittingInstanceUpdateRequest'
       responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/UnprocessableEntity' }
         '200':
           description: OK
           content:
@@ -1732,6 +1846,9 @@ paths:
           required: false
           schema: { type: string }
       responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/UnprocessableEntity' }
         '200':
           description: OK
 
@@ -1766,6 +1883,9 @@ paths:
             schema:
               $ref: '#/components/schemas/AutoCreationIntentCreateRequest'
       responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/UnprocessableEntity' }
         '200':
           description: OK (intent accepted; status typically `processing`)
           content:
@@ -1796,6 +1916,8 @@ paths:
           required: true
           schema: { type: string }
       responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
         '200':
           description: OK
           content:
@@ -1825,6 +1947,8 @@ paths:
           required: true
           schema: { type: string }
       responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
         '200':
           description: OK
           content:
