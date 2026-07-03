@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Unofficial Skylight API (Community Reference)
-  version: 0.3.0
+  version: 0.4.0
   description: |
     Reverse-engineered reference for Skylight endpoints based on observed traffic.
     JSON:API-style resources are common (type, id, attributes, relationships).
@@ -17,6 +17,10 @@ tags:
   - name: TaskBox
   - name: Calendars
   - name: Rewards
+  - name: Meals
+    description: Meal categories and the meal plan (sittings/instances).
+  - name: Recipes
+    description: Recipe box and recipe→grocery-list actions.
 
 components:
   securitySchemes:
@@ -355,6 +359,196 @@ components:
           type: string
         attributes:
           $ref: '#/components/schemas/RewardPointAttributes'
+      required: [type, id]
+
+    # ---- Meal Categories ----
+    MealCategoryAttributes:
+      type: object
+      properties:
+        label:
+          type: string
+          description: e.g., Breakfast, Lunch, Dinner, Snack
+        color:
+          type: string
+          nullable: true
+          description: Hex color; observed with leading '#'
+          pattern: "^#?[0-9A-Fa-f]{6}$"
+        enabled:
+          type: boolean
+        position:
+          type: integer
+          description: Display order (0-based)
+      additionalProperties: true
+
+    MealCategoryResource:
+      type: object
+      properties:
+        type:
+          type: string
+          enum: [meal_category]
+        id:
+          type: string
+        attributes:
+          $ref: '#/components/schemas/MealCategoryAttributes'
+      required: [type, id]
+
+    # ---- Recipes ----
+    # Captured from GET /meals/recipes/{id}. IMPORTANT: recipes are NOT structured.
+    # Ingredients and instructions are embedded as free text inside `description`,
+    # by convention under "Ingredients:" and "Instructions:" headers. There is no
+    # ingredients array, servings, time, or image field in the observed payload.
+    MealRecipeAttributes:
+      type: object
+      properties:
+        summary:
+          type: string
+          description: Recipe title/name
+        description:
+          type: string
+          nullable: true
+          description: >
+            Free-text recipe body. By convention contains an "Ingredients:" block
+            (newline-delimited items) followed by an "Instructions:" block
+            (newline-delimited, numbered steps). NOT machine-structured — parse
+            this text to extract ingredients/steps.
+        draft:
+          type: boolean
+      additionalProperties: true
+
+    MealRecipeRelationships:
+      type: object
+      properties:
+        meal_category:
+          type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/JsonApiResourceId'
+
+    MealRecipeResource:
+      type: object
+      properties:
+        type:
+          type: string
+          enum: [meal_recipe]
+        id:
+          type: string
+        attributes:
+          $ref: '#/components/schemas/MealRecipeAttributes'
+        relationships:
+          $ref: '#/components/schemas/MealRecipeRelationships'
+      required: [type, id]
+
+    # ---- Meal Sittings (a recipe/meal planned on one or more dates) ----
+    MealSittingAttributes:
+      type: object
+      properties:
+        summary:
+          type: string
+          description: Meal title (often the recipe name)
+        description:
+          type: string
+          nullable: true
+        note:
+          type: string
+          nullable: true
+        rrule:
+          type: string
+          nullable: true
+          description: RRULE string when the meal recurs; null for one-off meals
+        draft:
+          type: boolean
+        recurring:
+          type: boolean
+        instances:
+          type: array
+          description: Concrete dates this sitting occurs on (YYYY-MM-DD)
+          items:
+            type: string
+            format: date
+      additionalProperties: true
+
+    MealSittingRelationships:
+      type: object
+      properties:
+        meal_category:
+          type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/JsonApiResourceId'
+        meal_recipe:
+          type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/JsonApiResourceId'
+        profiles:
+          type: object
+          properties:
+            data:
+              type: array
+              items:
+                $ref: '#/components/schemas/JsonApiResourceId'
+
+    MealSittingResource:
+      type: object
+      properties:
+        type:
+          type: string
+          enum: [meal_sitting]
+        id:
+          type: string
+        attributes:
+          $ref: '#/components/schemas/MealSittingAttributes'
+        relationships:
+          $ref: '#/components/schemas/MealSittingRelationships'
+      required: [type, id, attributes]
+
+    # Create body is a FLAT object (NOT JSON:API type/attributes wrapped),
+    # as observed on POST /meals/sittings.
+    MealSittingCreateRequest:
+      type: object
+      properties:
+        summary:
+          type: string
+        recipeId:
+          type: integer
+          nullable: true
+          description: Numeric meal_recipe id to attach; null for a free-text meal
+        categoryId:
+          type: integer
+          description: Numeric meal_category id (which meal slot)
+        date:
+          type: string
+          format: date
+          description: The day the meal is planned for (YYYY-MM-DD)
+        recurring:
+          type: boolean
+        description:
+          type: string
+          nullable: true
+        saveToRecipeBox:
+          type: boolean
+          description: If true, persist an ad-hoc meal into the recipe box
+      required: [summary, categoryId, date]
+
+    # ---- Auto Creation Intents (purpose not yet confirmed) ----
+    AutoCreationIntentAttributes:
+      type: object
+      description: >
+        Placeholder. Observed as GET /auto_creation_intents/{id} during the meal
+        workflow; likely relates to AI/import-assisted recipe or meal creation.
+        Fields to be captured.
+      additionalProperties: true
+
+    AutoCreationIntentResource:
+      type: object
+      properties:
+        type:
+          type: string
+          enum: [auto_creation_intent]
+        id:
+          type: string
+        attributes:
+          $ref: '#/components/schemas/AutoCreationIntentAttributes'
       required: [type, id]
 
 paths:
@@ -760,3 +954,423 @@ paths:
                     items: { $ref: '#/components/schemas/RewardPointResource' }
         '304':
           description: Not Modified
+
+  # ---- Meal Categories ----
+  /api/frames/{frameId}/meals/categories:
+    get:
+      tags: [Meals]
+      summary: List meal categories (Breakfast/Lunch/Dinner/Snack slots)
+      security:
+        - basicToken: []
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: frameId
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/MealCategoryResource' }
+        '304':
+          description: Not Modified
+
+  # ---- Recipes ----
+  /api/frames/{frameId}/meals/recipes:
+    get:
+      tags: [Recipes]
+      summary: List recipes (recipe box)
+      description: |
+        Returns the full recipe box. The web app performs recipe **search/filter
+        client-side** against this list — no per-query request is issued.
+      security:
+        - basicToken: []
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: frameId
+          required: true
+          schema: { type: string }
+        - in: query
+          name: include
+          required: false
+          schema:
+            type: string
+            description: "CSV; observed: meal_category"
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/MealRecipeResource' }
+                  included:
+                    type: array
+                    items: { $ref: '#/components/schemas/MealCategoryResource' }
+
+  /api/frames/{frameId}/meals/recipes/{recipeId}:
+    get:
+      tags: [Recipes]
+      summary: Get a recipe by id
+      security:
+        - basicToken: []
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: frameId
+          required: true
+          schema: { type: string }
+        - in: path
+          name: recipeId
+          required: true
+          schema: { type: string }
+        - in: query
+          name: include
+          required: false
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/MealRecipeResource' }
+                  included:
+                    type: array
+                    items: { type: object }
+    patch:
+      tags: [Recipes]
+      summary: Update a recipe
+      description: |
+        Observed when the "Update Recipe" toggle is enabled while editing a planned
+        meal. Request body shape not yet captured in full.
+      security:
+        - basicToken: []
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: frameId
+          required: true
+          schema: { type: string }
+        - in: path
+          name: recipeId
+          required: true
+          schema: { type: string }
+        - in: query
+          name: include
+          required: false
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: Recipe attributes to update (shape to be captured).
+              additionalProperties: true
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/MealRecipeResource' }
+
+  /api/frames/{frameId}/meals/recipes/{recipeId}/add_to_grocery_list:
+    post:
+      tags: [Recipes]
+      summary: Add a recipe's ingredients to the grocery list
+      description: |
+        Recipe→Lists bridge. Observed with **no request body**; returns 200 and
+        adds the recipe's ingredients as items on the default grocery list (see the
+        Lists endpoints). Exact response body and target-list selection to be captured.
+      security:
+        - basicToken: []
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: frameId
+          required: true
+          schema: { type: string }
+        - in: path
+          name: recipeId
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+
+  # ---- Meal Sittings (the meal plan) ----
+  /api/frames/{frameId}/meals/sittings:
+    get:
+      tags: [Meals]
+      summary: List planned meals (sittings) in a date window
+      description: |
+        Pagination is by **date range** (infinite-scroll style): the client shifts
+        `date_min`/`date_max` rather than using page/offset.
+      security:
+        - basicToken: []
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: frameId
+          required: true
+          schema: { type: string }
+        - in: query
+          name: date_min
+          required: false
+          schema: { type: string, format: date }
+        - in: query
+          name: date_max
+          required: false
+          schema: { type: string, format: date }
+        - in: query
+          name: include
+          required: false
+          schema:
+            type: string
+            description: "CSV; observed: meal_category,meal_recipe"
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/MealSittingResource' }
+                  included:
+                    type: array
+                    items:
+                      oneOf:
+                        - $ref: '#/components/schemas/MealCategoryResource'
+                        - $ref: '#/components/schemas/MealRecipeResource'
+        '304':
+          description: Not Modified
+    post:
+      tags: [Meals]
+      summary: Plan a meal (create a sitting on a date)
+      description: |
+        The "add to day" action. NOTE the request body is a **flat object**, not the
+        JSON:API `{data:{type,attributes}}` envelope used elsewhere.
+      security:
+        - basicToken: []
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: frameId
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MealSittingCreateRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/MealSittingResource' }
+                  included:
+                    type: array
+                    items:
+                      oneOf:
+                        - $ref: '#/components/schemas/MealCategoryResource'
+                        - $ref: '#/components/schemas/MealRecipeResource'
+
+  /api/frames/{frameId}/meals/sittings/{sittingId}/instances:
+    get:
+      tags: [Meals]
+      summary: List a sitting's instances in a date window
+      security:
+        - basicToken: []
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: frameId
+          required: true
+          schema: { type: string }
+        - in: path
+          name: sittingId
+          required: true
+          schema: { type: string }
+        - in: query
+          name: date_min
+          required: false
+          schema: { type: string, format: date }
+        - in: query
+          name: date_max
+          required: false
+          schema: { type: string, format: date }
+        - in: query
+          name: include
+          required: false
+          schema:
+            type: string
+            description: "CSV; observed: meal_category,meal_recipe"
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/MealSittingResource' }
+                  meta:
+                    type: object
+                    properties:
+                      date_min: { type: string, format: date }
+                      date_max: { type: string, format: date }
+                      deleted_sitting_ids:
+                        type: array
+                        items: { type: string }
+
+  /api/frames/{frameId}/meals/sittings/{sittingId}/instances/{date}:
+    patch:
+      tags: [Meals]
+      summary: Edit a single occurrence of a planned meal
+      description: |
+        Edits one dated instance of a (possibly recurring) sitting, keyed by the
+        instance date (YYYY-MM-DD). Request body shape to be captured.
+      security:
+        - basicToken: []
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: frameId
+          required: true
+          schema: { type: string }
+        - in: path
+          name: sittingId
+          required: true
+          schema: { type: string }
+        - in: path
+          name: date
+          required: true
+          description: Instance date (YYYY-MM-DD)
+          schema: { type: string, format: date }
+        - in: query
+          name: date_min
+          required: false
+          schema: { type: string, format: date }
+        - in: query
+          name: date_max
+          required: false
+          schema: { type: string, format: date }
+        - in: query
+          name: include
+          required: false
+          schema: { type: string }
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/MealSittingResource' }
+    delete:
+      tags: [Meals]
+      summary: Remove a single occurrence of a planned meal
+      description: |
+        Deletes one dated instance of a sitting. Returned `meta.deleted_sitting_ids`
+        reflects removals for client sync.
+      security:
+        - basicToken: []
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: frameId
+          required: true
+          schema: { type: string }
+        - in: path
+          name: sittingId
+          required: true
+          schema: { type: string }
+        - in: path
+          name: date
+          required: true
+          description: Instance date (YYYY-MM-DD)
+          schema: { type: string, format: date }
+        - in: query
+          name: date_min
+          required: false
+          schema: { type: string, format: date }
+        - in: query
+          name: date_max
+          required: false
+          schema: { type: string, format: date }
+        - in: query
+          name: include
+          required: false
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+
+  # ---- Auto Creation Intents ----
+  /api/frames/{frameId}/auto_creation_intents/{intentId}:
+    get:
+      tags: [Meals]
+      summary: Get an auto-creation intent (purpose not yet confirmed)
+      description: |
+        Observed during the meal workflow; likely related to AI/import-assisted
+        recipe or meal creation. Included for coverage; schema to be captured.
+      security:
+        - basicToken: []
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: frameId
+          required: true
+          schema: { type: string }
+        - in: path
+          name: intentId
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/AutoCreationIntentResource' }

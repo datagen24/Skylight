@@ -1,0 +1,56 @@
+{
+  "request": {
+    "method": "POST",
+    "url": "https://app.ourskylight.com/api/frames/FRAME_REDACTED/meals/sittings",
+    "headers": {
+      "Authorization": "Bearer REDACTED",
+      "Content-Type": "application/json"
+    },
+    "body": {
+      "summary": "Chicken Marsala",
+      "recipeId": 21023304,
+      "categoryId": 2961984,
+      "date": "2026-07-03",
+      "recurring": false,
+      "description": null,
+      "saveToRecipeBox": false
+    }
+  },
+  "response": {
+    "status": 200,
+    "body": {
+      "data": [
+        {
+          "id": "37773125",
+          "type": "meal_sitting",
+          "attributes": {
+            "summary": "Chicken Marsala ",
+            "description": "",
+            "note": "",
+            "rrule": null,
+            "draft": false,
+            "recurring": false,
+            "instances": ["2026-07-03"]
+          },
+          "relationships": {
+            "meal_category": { "data": { "id": "2961984", "type": "meal_category" } },
+            "meal_recipe": { "data": { "id": "21023304", "type": "meal_recipe" } },
+            "profiles": { "data": [] }
+          }
+        }
+      ],
+      "included": [
+        {
+          "id": "2961984",
+          "type": "meal_category",
+          "attributes": { "color": "#FDC36D", "label": "Dinner", "enabled": true, "position": 2 }
+        },
+        {
+          "id": "21023304",
+          "type": "meal_recipe",
+          "attributes": { "summary": "Chicken Marsala", "description": "Ingredients:\n...\n\nInstructions:\n...", "draft": false }
+        }
+      ]
+    }
+  }
+}

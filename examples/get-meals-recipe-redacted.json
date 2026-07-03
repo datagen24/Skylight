@@ -1,0 +1,36 @@
+{
+  "request": {
+    "method": "GET",
+    "url": "https://app.ourskylight.com/api/frames/FRAME_REDACTED/meals/recipes/67428559?include=meal_category",
+    "headers": {
+      "Authorization": "Bearer REDACTED",
+      "Accept": "application/json"
+    }
+  },
+  "response": {
+    "status": 200,
+    "body": {
+      "data": {
+        "id": "67428559",
+        "type": "meal_recipe",
+        "attributes": {
+          "summary": "Mediterranean Chicken and Chickpea Bake",
+          "description": "Ingredients:\n2 boneless, skinless chicken thighs or breasts, cut into 1-inch pieces\n1 can (15 ounces) chickpeas, drained and rinsed\n1 red bell pepper, chopped\n1 zucchini, chopped\n1/2 red onion, sliced\n2 cloves garlic, minced\n1/4 cup olive oil\n1 teaspoon dried oregano\n1/2 teaspoon dried thyme\nSalt and black pepper to taste\n1/4 cup chopped fresh parsley (for garnish, optional)\nLemon wedges (for serving, optional)\n\nInstructions:\n1. Preheat oven to 400F (200C).\n2. In a large bowl, combine the chopped chicken, drained chickpeas, red bell pepper, zucchini, and red onion.\n3. Add the minced garlic, olive oil, dried oregano, dried thyme, salt, and black pepper. Toss well to ensure all ingredients are evenly coated.\n4. Spread the mixture in a single layer on a baking sheet or in a large baking dish.\n5. Bake for 25-30 minutes, or until the chicken is cooked through and the vegetables are tender. Stir halfway through baking for even cooking.\n6. Remove from oven, garnish with fresh parsley if desired, and serve with lemon wedges.",
+          "draft": false
+        },
+        "relationships": {
+          "meal_category": {
+            "data": { "id": "2961984", "type": "meal_category" }
+          }
+        }
+      },
+      "included": [
+        {
+          "id": "2961984",
+          "type": "meal_category",
+          "attributes": { "color": "#FDC36D", "label": "Dinner", "enabled": true, "position": 2 }
+        }
+      ]
+    }
+  }
+}

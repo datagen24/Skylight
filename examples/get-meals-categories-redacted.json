@@ -1,0 +1,27 @@
+{
+  "request": {
+    "method": "GET",
+    "url": "https://app.ourskylight.com/api/frames/FRAME_REDACTED/meals/categories",
+    "headers": {
+      "Authorization": "Bearer REDACTED",
+      "Accept": "application/json"
+    }
+  },
+  "response": {
+    "status": 200,
+    "body": {
+      "data": [
+        {
+          "id": "2961982",
+          "type": "meal_category",
+          "attributes": { "color": "#F66951", "label": "Breakfast", "enabled": true, "position": 0 }
+        },
+        {
+          "id": "2961983",
+          "type": "meal_category",
+          "attributes": { "color": "#A8D4D3", "label": "Lunch", "enabled": true, "position": 1 }
+        }
+      ]
+    }
+  }
+}
