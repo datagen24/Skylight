@@ -1,0 +1,28 @@
+{
+  "_note": "POST add_to_grocery_list. No request body. Response is async: it echoes the recipe with meta.auto_creation_intent_id — the actual ingredient append runs through the Assist (auto_creation_intents) job system.",
+  "request": {
+    "method": "POST",
+    "url": "https://app.ourskylight.com/api/frames/FRAME_REDACTED/meals/recipes/67428559/add_to_grocery_list",
+    "headers": {
+      "Authorization": "Bearer REDACTED"
+    }
+  },
+  "response": {
+    "status": 200,
+    "body": {
+      "data": {
+        "id": "67428559",
+        "type": "meal_recipe",
+        "attributes": {
+          "summary": "Mediterranean Chicken and Chickpea Bake",
+          "description": "...",
+          "draft": false
+        },
+        "relationships": {
+          "meal_category": { "data": { "id": "2961984", "type": "meal_category" } }
+        },
+        "meta": { "auto_creation_intent_id": 17418046 }
+      }
+    }
+  }
+}
