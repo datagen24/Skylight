@@ -1,25 +1,32 @@
 # Docs Site
 
-Two static viewers are included:
-- `docs-site/swagger.html` (Swagger UI)
-- `docs-site/redoc.html` (Redoc)
+Two static viewers are included, both in this `docs/` folder:
+- `swagger.html` (Swagger UI)
+- `redoc.html` (Redoc)
+- `index.html` (landing page)
 
-They load the spec from `openapi/openapi.yaml`.
+They load the spec from `openapi/openapi.yaml` (i.e. `docs/openapi/openapi.yaml`).
 
 ## GitHub Pages
 
-1. Commit & push to `main` (or `master`).
-2. In repo settings → Pages, set **Source** to **GitHub Actions**.
-3. The included workflow `.github/workflows/pages.yml` will publish the whole repo.
-4. Visit:
-   - `/docs-site/swagger.html`
-   - `/docs-site/redoc.html`
+There is no Actions workflow in this repo; Pages is served directly from the folder:
+
+1. Push to `main`.
+2. In repo **Settings → Pages**, set **Source** to **Deploy from a branch**,
+   branch **`main`**, folder **`/docs`**.
+3. Visit:
+   - `https://datagen24.github.io/Skylight/swagger.html`
+   - `https://datagen24.github.io/Skylight/redoc.html`
+
+Because Pages serves the `/docs` folder as the site root, the spec resolves at
+`https://datagen24.github.io/Skylight/openapi/openapi.yaml` (the absolute URL
+the viewers reference).
 
 ## Local (no build tools)
 
-Open `docs-site/swagger.html` or `docs-site/redoc.html` in a local HTTP server:
+Serve this `docs/` folder over HTTP:
 ```bash
 # from repo root
-python3 -m http.server 8080
-# then browse http://localhost:8080/docs-site/swagger.html
+python3 -m http.server 8080 --directory docs
+# then browse http://localhost:8080/swagger.html
 ```

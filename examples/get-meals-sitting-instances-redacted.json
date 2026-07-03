@@ -1,0 +1,40 @@
+{
+  "request": {
+    "method": "GET",
+    "url": "https://app.ourskylight.com/api/frames/FRAME_REDACTED/meals/sittings/37773125/instances?date_min=2026-07-01&date_max=2026-08-01&include=meal_category,meal_recipe",
+    "headers": {
+      "Authorization": "Bearer REDACTED",
+      "Accept": "application/json"
+    }
+  },
+  "response": {
+    "status": 200,
+    "body": {
+      "data": [
+        {
+          "id": "37773125",
+          "type": "meal_sitting",
+          "attributes": {
+            "summary": "Chicken Marsala ",
+            "description": "",
+            "note": "",
+            "rrule": null,
+            "draft": false,
+            "recurring": false,
+            "instances": ["2026-07-03"]
+          },
+          "relationships": {
+            "meal_category": { "data": { "id": "2961984", "type": "meal_category" } },
+            "meal_recipe": { "data": { "id": "21023304", "type": "meal_recipe" } },
+            "profiles": { "data": [] }
+          }
+        }
+      ],
+      "meta": {
+        "date_min": "2026-07-01",
+        "date_max": "2026-08-01",
+        "deleted_sitting_ids": []
+      }
+    }
+  }
+}
