@@ -80,13 +80,25 @@ Explore the API spec in your browser:
 
 ## Roadmap
 
-- Add auth/login flow (if observable).
-- Fill remaining placeholder schema: `devices` (and confirm/remove `source_calendars`).
-- Capture `event_notification_setting` (calendar) and calendar event create/update.
-- Explore Assist attachment/photo ingestion: which `engine` + how `attachment_put_url`
-  is used (likely the mobile-only path).
-- Capture the raw 404/422 JSON bodies (needs a proxy or authed client — the browser
-  network tool exposes status but not bodies); characterize rate limits (429) if any.
+Grouped by how each item can be captured. Note: passive browser observation exposes
+request/response **status and URLs but not bodies**, so anything body-level needs an
+intercepting proxy (e.g. mitmproxy — see [docs/auth.md](docs/auth.md)).
+
+**Browser-capturable (low effort):**
+- Calendar: `event_notification_setting` schema; event create/update flows.
+- Confirm or remove the unverified `/source_calendars` endpoint.
+- `devices` schema — the read-only `GET` is safe but low value (single device);
+  grab opportunistically rather than as a dedicated session.
+
+**Needs an intercepting proxy or authed client (body-level):**
+- **Assist attachment/photo ingestion** — which `engine` + how `attachment_put_url`
+  is used (the mobile-only path). See [docs/assist.md](docs/assist.md).
+- Raw `404` / `422` JSON bodies (statuses confirmed; bodies not yet observed).
+- Auth/login flow — how the Bearer/Basic token is issued.
+
+**Open questions:**
+- Rate limits (`429`) — whether enforced, and thresholds.
+- Other Assist `engine` values (events, lists, chores) — see [docs/assist.md](docs/assist.md).
 
 ---
 
